@@ -21,3 +21,5 @@ Enable *Fixation Correction* plugin in Plugin Manager.
 4. Apply a correction to current fixation or even fixation interval (specify first and last fixations indices).
 5. Save fixations to memory (obligatory step).
 6. Save fixations to file.
+
+Note: fixations are saved to `offline_data` folder created by Fixation Detector.
