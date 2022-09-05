@@ -79,8 +79,7 @@ class FixationCorrection(Plugin):
 
         with fm.PLData_Writer(self.__data_dir, "fixations") as writer:
             for timestamp, fixation in zip(offline_fixations.timestamps, offline_fixations.data):
-                x_corr, y_corr = self.__fixation_corrections.get(fixation["id"], (0.0, 0.0))
-                norm_pos = (fixation["norm_pos"][0] + x_corr, fixation["norm_pos"][1] + y_corr)
+                norm_pos = self.g_pool.fixations[fixation["id"]]["norm_pos"]
                 fixation_updated = fm.Serialized_Dict(msgpack_bytes=self.__modify_fixation(fixation, **{"norm_pos": norm_pos}))
                 writer.append_serialized(timestamp, "fixation", fixation_updated.serialized)
 
@@ -119,7 +118,7 @@ class FixationCorrection(Plugin):
                     frame.img, point, radius=20, color=(0.0, 0.3, 1.0, 0.1), thickness=-1,
                 )
                 transparent_circle(
-                    frame.img, point, radius=20, color=(0.0, 0.3, 1.0, 0.5), thickness=1,
+                    frame.img, point, radius=20, color=(0.0, 0.3, 1.0, 0.5), thickness=2,
                 )
 
         else:
@@ -160,6 +159,7 @@ class FixationCorrection(Plugin):
         self.menu.append(ui.Button("Reset Correction For Current Fixation", self.__reset_corr_current_fixation))
         self.menu.append(ui.Separator())
         self.menu.append(ui.Button("Apply Correction to All Fixations", self.__apply_to_all_fixations))
+        self.menu.append(ui.Button("Reset Corrections for All Fixations", self.__reset_corr_for_all_fixations))
         self.menu.append(ui.Separator())
         self.menu.append(
             ui.Info_Text("Specify fixation indices below to apply correction within the whole interval")
@@ -181,7 +181,15 @@ class FixationCorrection(Plugin):
         self.menu.append(ui.Button("Apply Correction To Specified Fixations", self.__apply_corr_to_interval))
         self.menu.append(ui.Button("Reset Corrections For Specified Fixations", self.__reset_corr_for_interval))
         self.menu.append(ui.Separator())
-        self.menu.append(ui.Button("Save All Fixations", self.__save_online_fixations))
+        self.menu.append(ui.Info_Text(
+            "Fixations saved to memory will be replaced during next startup. "
+            "For persistent changes save fixations to file using button below.")
+        )
+        self.menu.append(ui.Button("Save All Fixations to Memory (only for current session)", self.__save_online_fixations))
+        self.menu.append(
+            ui.Info_Text(
+                "Only corrected fixations (bold yellow circles, by default) will be saved to file. ")
+        )
         self.menu.append(ui.Button("Save All Fixations to File", self.__save_offline_fixations))
         # self.menu.append(ui.Separator())
         # self.menu.append(ui.Info_Text("Fixations corrections:"))
@@ -219,6 +227,10 @@ class FixationCorrection(Plugin):
             existing_correction = self.__fixation_corrections.get(fid, (0.0, 0.0))
             self.__fixation_corrections[fid] = (existing_correction[0] + self.__x_corr, existing_correction[1] + self.__y_corr)
 
+        # Finally resetting corrections
+        self.__x_corr = 0.0
+        self.__y_corr = 0.0
+
     def __reset_corr_current_fixation(self):
         frame_window = pm.enclosing_window(self.g_pool.timestamps, self.__frame.index)
         fixations = self.g_pool.fixations.by_ts_window(frame_window)
@@ -231,6 +243,11 @@ class FixationCorrection(Plugin):
             # Finally resetting corrections
             self.__x_corr = 0.0
             self.__y_corr = 0.0
+
+    def __reset_corr_for_all_fixations(self):
+        """Reset all fixation corrections"""
+        self.__fixation_corrections.clear()
+
 
     def __reset_corr_for_interval(self):
         """Reset fixation correction within specified interval"""
